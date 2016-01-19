@@ -1,0 +1,7 @@
+{
+	"name": "desolate-escarpment-9541",
+	"version": "0.0.0",
+	"dependencies": {
+		"express": "*",
+	}
+}
