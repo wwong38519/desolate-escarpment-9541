@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.0-rc.0/angular.min.js"></script>
+<script>
+var appID = '530641127105879';
+
+var app = angular.module('facebook-app', []);
+
+app.provider('facebook', function() {
+	var initialized = false;
+	this.appID = 'default';
+	function init(appID) {
+		(function(d, s, id){
+			var js, fjs = d.getElementsByTagName(s)[0];
+			if (d.getElementById(id)) { return; }
+			js = d.createElement(s);
+			js.id = id;
+			js.src = "//connect.facebook.net/en_US/sdk.js";
+			fjs.parentNode.insertBefore(js, fjs);
+		}(document, 'script', 'facebook-jssdk'));
+		window.fbAsyncInit = function() {
+			FB.init({
+				appId : appID,
+				status : true,
+				cookie : true,
+				xfbml : true,
+				version : 'v2.4'
+			});
+			initialized = true;
+		}
+	}
+	this.setAppID = function(appID) { this.appID = appID; }
+	this.$get = function() {
+		var appID = this.appID;
+		var self = this;
+		init(appID);
+		var graph = function(path, param, callback) {
+			if (!initialized) {
+				setTimeout(function() {
+					self.$get()['graph'](path, param, callback);
+				}, 100);
+				return;
+			}
+			FB.api(path, param, function(response) {
+				callback(response);
+			});
+		};
+		var getAuth = function() {
+			return self.auth;
+		};
+		var getLoginStatus = function(callback) {
+			if (!initialized) {
+				setTimeout(function() {
+					self.$get()['getLoginStatus'](callback);
+				}, 100);
+				return;
+			}
+			FB.getLoginStatus(function(response) {
+				callback(response);
+			});
+		};
+		var login = function(callback) {
+			if (!initialized) {
+				setTimeout(function() {
+					self.$get()['login'](callback);
+				}, 100);
+				return;
+			}
+			FB.login(function(response) {
+				if (response.authResponse) {
+					self.auth = response.authResponse;
+					callback(response);
+				} else {
+					console.log('Facebook login failed', response);
+				}
+			});
+		};
+		var logout = function() {
+			FB.logout(function(response) {
+				if (response) {
+					self.auth = null;
+				} else {
+					console.log('Facebook logout failed', response);
+				}
+			})
+		}
+		return {
+			graph : graph,
+			getAuth : getAuth,
+			getLoginStatus : getLoginStatus,
+			login : login,
+			logout : logout
+		};
+	}
+});
+
+app.config(function(facebookProvider){
+	facebookProvider.setAppID(appID);
+});
+
+app.controller('main-controller', ['$scope', 'facebook', function($scope, facebook) {
+	var url = '/228735667216'
+	var param = {fields: 'about,likes'};
+	facebook.login(function(response) {
+		console.log(response);
+	});
+	// facebook.graph(url, param, function(response) {
+	// 	console.log(response);
+	// });
+}]);
+
+</script>
+</head>
+<body data-ng-app="facebook-app">
+<div data-ng-controller="main-controller"></div>
+</body>
+</html>
+
