@@ -1,119 +1,111 @@
 <!DOCTYPE html>
 <html>
 <head>
-<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.5.0-rc.0/angular.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.0-rc.0/angular.min.js"></script>
+<script src="//ajax.googleapis.com/ajax/libs/angularjs/1.5.0-rc.0/angular-route.js"></script>
 <script>
-var appID = '530641127105879';
-
-var app = angular.module('facebook-app', []);
-
-app.provider('facebook', function() {
-	var initialized = false;
-	this.appID = 'default';
-	function init(appID) {
-		(function(d, s, id){
-			var js, fjs = d.getElementsByTagName(s)[0];
-			if (d.getElementById(id)) { return; }
-			js = d.createElement(s);
-			js.id = id;
-			js.src = "//connect.facebook.net/en_US/sdk.js";
-			fjs.parentNode.insertBefore(js, fjs);
-		}(document, 'script', 'facebook-jssdk'));
-		window.fbAsyncInit = function() {
-			FB.init({
-				appId : appID,
-				status : true,
-				cookie : true,
-				xfbml : true,
-				version : 'v2.4'
-			});
-			initialized = true;
+var serialize = function(obj) {
+	var str = [];
+	for(var p in obj){
+		if (obj.hasOwnProperty(p)) {
+			str.push(encodeURIComponent(p) + "=" + encodeURIComponent(obj[p]));
 		}
 	}
-	this.setAppID = function(appID) { this.appID = appID; }
-	this.$get = function() {
-		var appID = this.appID;
-		var self = this;
-		init(appID);
-		var graph = function(path, param, callback) {
-			if (!initialized) {
-				setTimeout(function() {
-					self.$get()['graph'](path, param, callback);
-				}, 100);
-				return;
-			}
-			FB.api(path, param, function(response) {
-				callback(response);
-			});
-		};
-		var getAuth = function() {
-			return self.auth;
-		};
-		var getLoginStatus = function(callback) {
-			if (!initialized) {
-				setTimeout(function() {
-					self.$get()['getLoginStatus'](callback);
-				}, 100);
-				return;
-			}
-			FB.getLoginStatus(function(response) {
-				callback(response);
-			});
-		};
-		var login = function(callback) {
-			if (!initialized) {
-				setTimeout(function() {
-					self.$get()['login'](callback);
-				}, 100);
-				return;
-			}
-			FB.login(function(response) {
-				if (response.authResponse) {
-					self.auth = response.authResponse;
-					callback(response);
-				} else {
-					console.log('Facebook login failed', response);
-				}
-			});
-		};
-		var logout = function() {
-			FB.logout(function(response) {
-				if (response) {
-					self.auth = null;
-				} else {
-					console.log('Facebook logout failed', response);
-				}
-			})
-		}
-		return {
-			graph : graph,
-			getAuth : getAuth,
-			getLoginStatus : getLoginStatus,
-			login : login,
-			logout : logout
-		};
-	}
-});
+	return str.join("&");
+}
+var app = angular.module('facebook-app', ['ngRoute']);
 
-app.config(function(facebookProvider){
-	facebookProvider.setAppID(appID);
-});
-
-app.controller('main-controller', ['$scope', 'facebook', function($scope, facebook) {
-	var url = '/228735667216'
-	var param = {fields: 'about,likes'};
-	facebook.login(function(response) {
-		console.log(response);
-	});
-	// facebook.graph(url, param, function(response) {
-	// 	console.log(response);
-	// });
+app.config(['$routeProvider', function($routeProvider) {
+	$routeProvider
+	.when('/', {
+		templateUrl: '/link.html'
+	})
+	.when('/page/:id', {
+		templateUrl: '/page.html',
+		controller: 'page-controller'
+	})
+	.otherwise({redirectTo: '/'});
 }]);
 
+app.factory('facebook', ['$http', function($http) {
+	var fb = {};
+	var init = false;
+	fb.login = function() {
+		return $http.get('/login').success(function(data) {
+			init = true;
+		});
+	}
+	fb.api = function(path, params, callback) {
+		var options = {
+			params: {
+				path: path + '?' + serialize(params),
+			}
+		};
+		if (!init) {
+			setTimeout(function() {
+				fb.api(path, params, callback);
+			}, 100);
+			return;
+		}
+		return $http.get('/api', options).success(function(data) {
+			callback(JSON.parse(data));
+		});
+	};
+	return fb;
+}]);
+
+app.controller('page-controller', ['$scope', '$routeParams', 'facebook', function($scope, $routeParams, facebook) {
+	facebook.login();
+	$scope.page_id = $routeParams.id;
+	$scope.update = function() {
+		$scope.ready = false;
+		$scope.page = {};
+		var path, params;
+		path = '/'+$scope.page_id;
+		params = {fields: 'name,about,likes,link'};
+		facebook.api(path, params, function(data) {
+			if ($scope.ready = !data.error) {
+				$scope.page.info = data;
+				path = '/'+$scope.page_id+'/posts'
+				params = {fields: 'id,created_time,name,description,message,link,picture,shares,likes,status_type'};
+				facebook.api(path, params, function(data) {
+					$scope.page.posts = data.data;
+				});
+			}
+		});
+	};
+}]);
 </script>
 </head>
 <body data-ng-app="facebook-app">
-<div data-ng-controller="main-controller"></div>
+<div ng-view></div>
+<script id="/link.html" type="text/ng-template">
+<a href="#/page/281498931927662">Gameover</a>
+<a href="#/page/601482093198357">Sunnyhahaha</a>
+<a href="#/page/228735667216">BBC News</a>
+</script>
+<script id="/page.html" type="text/ng-template">
+<div ng-include="'/link.html'"></div>
+<div>
+	<input ng-hide="true" ng-model="page_id" ng-change="update()" ng-init="update()" placeholder="page id" />
+	<div ng-if="ready">
+		<div><a href="{{page.info.link}}">{{page.info.name}}</a> {{page.info.likes}} likes</div>
+		<div>{{page.info.about}}</div>
+		<div ng-repeat="post in page.posts">
+			<hr/>
+			<div><img ng-show="post.picture" src="{{post.picture}}"/></div>
+			<div ng-show="post.status_type=='shared_story'">
+				<blockquote>
+					<a href="{{post.link}}">{{post.name}}</a>
+					<div>{{post.description}}</div>
+				</blockquote>
+			</div>
+			<div>{{post.message}}</div>
+			<div>{{post.shares.count || 0}} shares {{post.likes.data.length}} likes {{post.created_time}}</div>
+		</div>
+	</div>
+</div>
+</script>
 </body>
 </html>
 
