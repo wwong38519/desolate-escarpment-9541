@@ -1,7 +1,15 @@
 {
-	"name": "desolate-escarpment-9541",
-	"version": "0.0.0",
-	"dependencies": {
-		"express": "*"
-	}
+  "name": "desolate-escarpment-9541",
+  "version": "0.0.0",
+  "dependencies": {
+    "express": "*"
+  },
+  "scripts": {
+    "postinstall": "grunt build",
+    "start": "node index.js"
+  },
+  "devDependencies": {
+    "grunt": "~0.4.5",
+    "grunt-bower-install": "~1.6.0"
+  }
 }
