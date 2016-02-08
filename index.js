@@ -9,7 +9,7 @@ facebook.setup(app_id, app_secret);
 app.use(express.static(__dirname));
 
 app.get('/', function(req, res){
-	res.redirect('/home.html');
+	res.redirect('/index.html');
 });
 
 app.get('/login', function(req, res) {
