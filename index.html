@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- bower:js -->
 <script src="bower_components/angular/angular.js"></script>
-<script src="bower_components/angular-route/angular-route.js"></script>
+<script src="bower_components/angular-ui-router/release/angular-ui-router.js"></script>
 <!-- endbower -->
 <!-- bower:css -->
 <link rel="stylesheet" href="bower_components/bootstrap/dist/css/bootstrap.css" />
@@ -19,18 +19,28 @@ var serialize = function(obj) {
 	}
 	return str.join("&");
 }
-var app = angular.module('facebook-app', ['ngRoute']);
+var app = angular.module('facebook-app', ['ui.router']);
 
-app.config(['$routeProvider', function($routeProvider) {
-	$routeProvider
-	.when('/', {
-		templateUrl: '/link.html'
+app.config(['$stateProvider', function($stateProvider) {
+	$stateProvider
+	.state('root', {
+		url: '',
+		views: {
+			'nav': {
+				templateUrl: '/nav.html',
+				controller: 'nav-controller'
+			}
+		}
 	})
-	.when('/page/:id', {
-		templateUrl: '/page.html',
-		controller: 'page-controller'
-	})
-	.otherwise({redirectTo: '/'});
+	.state('root.page', {
+		url: '/page/:id',
+		views: {
+			'body@': {
+				templateUrl: '/page.html',
+				controller: 'page-controller'
+			}
+		}
+	});
 }]);
 
 app.factory('facebook', ['$http', function($http) {
@@ -60,9 +70,21 @@ app.factory('facebook', ['$http', function($http) {
 	return fb;
 }]);
 
-app.controller('page-controller', ['$scope', '$routeParams', 'facebook', function($scope, $routeParams, facebook) {
+app.controller('nav-controller', ['$scope', function($scope) {
+	$scope.links =[
+		{id: 'GameoverHK', name: 'GameoverHK'},
+		{id: 'unwirehk', name: 'UNWIRE.HK'},
+		{id: 'SunnyhahahaChan', name: 'SunnyhahahaChan'},
+		{id: 'bbcnews', name: 'BBC News'},
+		{id: 'theguardian', name: 'The Guardian'},
+		{id: 'theeconomist', name: 'The Economist'},
+		{id: 'huffingtonpost', name: 'Huffington Post'}
+	];
+}]);
+
+app.controller('page-controller', ['$scope', '$stateParams', 'facebook', function($scope, $stateParams, facebook) {
 	facebook.login();
-	$scope.page_id = $routeParams.id;
+	$scope.page_id = $stateParams.id;
 	$scope.update = function() {
 		$scope.ready = false;
 		$scope.page = {};
@@ -84,18 +106,15 @@ app.controller('page-controller', ['$scope', '$routeParams', 'facebook', functio
 </script>
 </head>
 <body data-ng-app="facebook-app">
-<div ng-view></div>
-<script id="/link.html" type="text/ng-template">
-<a href="#/page/281498931927662">Gameover</a>
-<a href="#/page/unwirehk">UNWIRE.HK</a>
-<a href="#/page/601482093198357">Sunnyhahaha</a>
-<a href="#/page/228735667216">BBC News</a>
-<a href="#/page/theguardian">The Guardian</a>
-<a href="#/page/theeconomist">The Economist</a>
-<a href="#/page/huffingtonpost">Huffington Post</a>
+<div ui-view="nav"></div>
+<div ui-view="body"></div>
+<script id="/nav.html" type="text/ng-template">
+<ul class="breadcrumb">
+<li ng-repeat="link in links"><a href="#/page/{{link.id}}">{{link.name}}</a></li>
+</ul>
 </script>
 <script id="/page.html" type="text/ng-template">
-<div ng-include="'/link.html'"></div>
+<!--<div ng-include="'/nav.html'" ng-controller="nav-controller"></div>-->
 <div class="container-fluid">
 	<input ng-hide="true" ng-model="page_id" ng-change="update()" ng-init="update()" placeholder="page id" />
 	<div ng-if="ready">
@@ -114,12 +133,13 @@ app.controller('page-controller', ['$scope', '$routeParams', 'facebook', functio
 				</div>
 				<small>{{post.shares.count || 0}} shares {{post.likes.data.length}} likes {{post.created_time | date:'yyyy-MM-dd HH:mm:ss'}}</small>
 			</div>
-			<div class="col-md-2 hidden-sm hidden-xs"><img ng-show="post.picture" ng-src="{{post.picture}}"/></div>
+			<div class="col-md-2 hidden-xs"><img ng-show="post.picture" ng-src="{{post.picture}}"/></div>
 		</div>
 	</div>
 </div>
 <style>
 .row:nth-of-type(even) {background:#ebebeb;}
+.breadcrumb{margin-bottom:0px;}
 blockquote{font-size:14px;}
 </style>
 </script>
