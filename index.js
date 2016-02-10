@@ -6,7 +6,8 @@ var app_secret = process.env.FB_APP_SECRET || 'FB_APP_SECRET';
 
 facebook.setup(app_id, app_secret);
 
-app.use(express.static(__dirname));
+//app.use(express.static(__dirname));
+app.use(express.static('public'));
 
 app.get('/', function(req, res){
 	res.redirect('/index.html');
