@@ -2,6 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>...</title>
 <!-- inject:js -->
 <script src="js/angular.js"></script>
 <script src="js/angular-ui-router.js"></script>
@@ -21,10 +22,10 @@ var serialize = function(obj) {
 }
 var app = angular.module('facebook-app', ['ui.router']);
 
-app.config(['$stateProvider', function($stateProvider) {
+app.config(['$stateProvider', '$urlRouterProvider', function($stateProvider, $urlRouterProvider) {
 	$stateProvider
 	.state('root', {
-		url: '',
+		url: '/',
 		views: {
 			'nav': {
 				templateUrl: '/nav.html',
@@ -41,6 +42,7 @@ app.config(['$stateProvider', function($stateProvider) {
 			}
 		}
 	});
+	$urlRouterProvider.otherwise('/');
 }]);
 
 app.factory('facebook', ['$http', function($http) {
@@ -70,16 +72,20 @@ app.factory('facebook', ['$http', function($http) {
 	return fb;
 }]);
 
-app.controller('nav-controller', ['$scope', function($scope) {
+app.controller('nav-controller', ['$scope', '$state', function($scope, $state) {
 	$scope.links =[
 		{id: 'GameoverHK', name: 'GameoverHK'},
 		{id: 'unwirehk', name: 'UNWIRE.HK'},
 		{id: 'SunnyhahahaChan', name: 'SunnyhahahaChan'},
-		{id: 'bbcnews', name: 'BBC News'},
+		{id: 'mingpaoinews', name: 'MingPao'},
 		{id: 'theguardian', name: 'The Guardian'},
 		{id: 'theeconomist', name: 'The Economist'},
 		{id: 'huffingtonpost', name: 'Huffington Post'}
 	];
+	$scope.switch = function(page_id) {
+		page_id = page_id || $scope.page_id;
+		$state.go('root.page', {id:page_id});
+	}
 }]);
 
 app.controller('page-controller', ['$scope', '$stateParams', 'facebook', function($scope, $stateParams, facebook) {
@@ -97,11 +103,12 @@ app.controller('page-controller', ['$scope', '$stateParams', 'facebook', functio
 				path = '/'+$scope.page_id+'/posts'
 				params = {fields: 'id,created_time,name,description,message,link,picture,shares,likes,status_type,comments'};
 				facebook.api(path, params, function(data) {
-					$scope.page.posts = data.data;
+					$scope.page.posts = data;
 				});
 			}
 		});
 	};
+	$scope.update();
 }]);
 </script>
 </head>
@@ -110,22 +117,21 @@ app.controller('page-controller', ['$scope', '$stateParams', 'facebook', functio
 <div ui-view="body"></div>
 <script id="/nav.html" type="text/ng-template">
 <ul class="breadcrumb">
-<li ng-repeat="link in links"><a href="#/page/{{link.id}}">{{link.name}}</a></li>
+<li ng-repeat="link in links"><a ng-click="switch(link.id)">{{link.name}}</a></li>
+<li><input ng-model="page_id" ng-change="switch()" ng-init="switch()" placeholder="page id" /></i>
 </ul>
 </script>
 <script id="/page.html" type="text/ng-template">
-<!--<div ng-include="'/nav.html'" ng-controller="nav-controller"></div>-->
 <div class="container-fluid">
-	<input ng-hide="true" ng-model="page_id" ng-change="update()" ng-init="update()" placeholder="page id" />
 	<div ng-if="ready">
 		<div class="title">
 			<h5>
 				<a href="{{page.info.link}}" target="_blank">{{page.info.name}}</a>
-				{{page.info.likes}} likes
+				<span>{{page.info.likes}} likes</span>
 			</h5>
 			<p>{{page.info.about}}</p>
 		</div>
-		<div class="row" ng-repeat="post in page.posts">
+		<div class="row" ng-repeat="post in page.posts.data">
 			<div class="col-md-10 col-sm-10">
 				<div>{{post.message}}</div>
 				<div ng-show="post.status_type=='shared_story'">
@@ -135,10 +141,17 @@ app.controller('page-controller', ['$scope', '$stateParams', 'facebook', functio
 					</blockquote>
 				</div>
 				<div class="small">
-					{{post.shares.count || 0}} shares
-					{{post.likes.data.length}} likes
-					{{post.comments.data.length || 0}} comments 
-					{{post.created_time | date:'yyyy-MM-dd HH:mm:ss'}}
+					<a ng-show="post.comments.data.length > 0" ng-click="showComments=!showComments">{{post.comments.data.length}} comments</a>
+					<span ng-show="!post.comments.data.length">0 comments</span>
+					<span>{{post.shares.count || 0}} shares</span>
+					<span>{{post.likes.data.length}} likes</span>
+					<span>{{post.created_time | date:'yyyy-MM-dd HH:mm:ss'}}</span>
+				</div>
+				<div ng-show="showComments">
+					<dl class="dl-horizontal">
+					<dt ng-repeat-start="comment in post.comments.data | orderBy:'-created_time'">{{comment.from.name}}</dt>
+					<dd ng-repeat-end>{{comment.message}}</dd>
+					</dl>
 				</div>
 			</div>
 			<div class="col-md-2 col-sm-2 hidden-xs"><img ng-show="post.picture" ng-src="{{post.picture}}"/></div>
@@ -148,6 +161,7 @@ app.controller('page-controller', ['$scope', '$stateParams', 'facebook', functio
 <style>
 .row:nth-of-type(even) {background:#f5f5f5;}
 .breadcrumb{margin-bottom:0px;}
+.dl-horizontal{margin-bottom:0px;}
 blockquote{font-size:14px;margin-bottom:0px;}
 </style>
 </script>
